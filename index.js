@@ -1,81 +1,29 @@
 const express = require('express')
-const app = express()
+const sequalize = require("./lib/sequalize")
+const passport = require("passport")
+const jwt = require("jsonwebtoken")
+
 const bodyParser = require('body-parser')
+const { routes } = require('./routes/users')
+const { routes: sessionRoutes } = require('./routes/session')
 
-app.use(bodyParser.json())
+async function App() {
+  const app = express()
+  app.use(bodyParser.json())
 
-const users = [{
-  id: 1,
-  name: "Edinson",
-  lastName: "Salas",
-  age: 30
-}, {
-  id: 2,
-  name: "Pedro",
-  lastName: "Perez",
-  age: 20
-}]
+  await sequalize.sync({ force: false })
 
-app.get('/users', function (req, res) {
-  res.json(users.filter((user) => !!user))
-})
+  routes(app)
+  sessionRoutes(app)
 
-app.get('/users/:id', function (req, res) {
-  const user = users.find((user) => user?.id === Number(req.params.id))
-
-  if (!user) {
-    res.status(404).json({
-      message: "Usuario no encontrado"
+  app.use((err, req, res, next) => {
+    console.error(err.stack)
+    res.status(500).json({
+      message: "Ooops, algo ha salido terriblemente mal"
     })
-    return
-  }
-
-  res.json(user)
-})
-
-app.post('/users', function (req, res) {
-  const user = { ...req.body, id: users.length + 1 }
-  users.push(user)
-  res.json(user)
-})
-
-app.patch('/users/:id', function (req, res) {
-  const userIndex = users.findIndex((user) => user.id === Number(req.params.id));
-
-  if (userIndex === -1) {
-    res.status(404).json({
-      message: "Usuario no encontrado"
-    })
-    return
-  }
-
-  const { id, ...user } = req.body
-  const editUser = { ...users[userIndex], ...user }
-  users[userIndex] = editUser
-  res.json(editUser)
-})
-
-app.delete('/users/:id', function (req, res) {
-  const userIndex = users.findIndex((user) => user.id === Number(req.params.id));
-
-  if (userIndex === -1) {
-    res.status(404).json({
-      message: "Usuario no encontrado"
-    })
-    return
-  }
-
-  delete users[userIndex]
-  res.json({
-    message: "Usuario eliminado"
   })
-})
 
-app.use((err, req, res, next) => {
-  console.error(err.stack)
-  res.status(500).json({
-    message: "Ooops, algo ha salido terriblemente mal"
-  })
-})
+  app.listen(3000)
+}
 
-app.listen(3000)
+App()
