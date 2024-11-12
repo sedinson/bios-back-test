@@ -1,5 +1,6 @@
 const { z } = require("zod")
 const { User } = require("../models/user")
+const bcrypt = require("bcryptjs")
 
 async function listUsers(req, res) {
   const users = await User.findAll()
@@ -51,8 +52,17 @@ async function createUser(req, res) {
     return
   }
 
-  const user = await User.create(req.body)
-  res.json(user)
+  const salt = await bcrypt.genSalt()
+  const password = await bcrypt.hash(req.body.password, salt)
+  const { role, ...data } = req.body
+
+  if (req.user?.role === "ADMIN") {
+    data.role = role
+  }
+
+  const user = await User.create({ ...data, password })
+  const { password: _, ...rest } = user.dataValues;
+  res.json(rest)
 }
 
 async function updateUser(req, res) {
@@ -79,37 +89,4 @@ async function deleteUser(req, res) {
   })
 }
 
-async function authenticateUser(req, res) {
-  const loginSchema = z.object({
-    email: z.string(),
-    password: z.string()
-  })
-
-  const valid = loginSchema.safeParse(req.body)
-
-  if (!valid.success) {
-    res.status(400).json({
-      message: "Parámetros inválidos",
-      result: valid.error
-    })
-    return
-  }
-
-  const user = await User.findOne({
-    where: {
-      email: req.body.email,
-      password: req.body.password
-    }
-  })
-
-  if (!user) {
-    res.status(404).json({
-      message: "Usuario y/o contraseña inválidos",
-    })
-    return
-  }
-
-  res.json(user)
-}
-
-module.exports = { listUsers, getUser, createUser, updateUser, deleteUser, authenticateUser }
+module.exports = { listUsers, getUser, createUser, updateUser, deleteUser }
